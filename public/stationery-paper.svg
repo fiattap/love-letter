@@ -1,0 +1,23 @@
+<svg width="680" height="920" viewBox="0 0 680 920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sheet" x1="88" y1="48" x2="578" y2="892" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF8"/>
+      <stop offset="1" stop-color="#F6EEE3"/>
+    </linearGradient>
+    <filter id="drop" x="16" y="8" width="648" height="900" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#6F5644" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="680" height="920" fill="#F7EFE5"/>
+
+  <g filter="url(#drop)">
+    <rect x="44" y="36" width="592" height="844" rx="16" fill="url(#sheet)"/>
+    <path d="M96 136H584" stroke="#EADACA" stroke-width="1.5"/>
+    <path d="M96 186H548" stroke="#EADACA" stroke-width="1.5"/>
+    <path d="M96 236H564" stroke="#EADACA" stroke-width="1.5"/>
+    <path d="M96 286H524" stroke="#EADACA" stroke-width="1.5"/>
+    <path d="M96 336H542" stroke="#EADACA" stroke-width="1.5"/>
+    <path d="M96 386H500" stroke="#EADACA" stroke-width="1.5"/>
+  </g>
+</svg>

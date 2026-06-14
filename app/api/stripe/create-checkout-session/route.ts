@@ -1,0 +1,83 @@
+import { NextResponse, type NextRequest } from "next/server";
+import Stripe from "stripe";
+
+import { createRouteHandlerSupabaseAuthClient } from "@/lib/supabaseAuthServer";
+import { supabaseServer } from "@/lib/supabaseServer";
+
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripePriceId = process.env.STRIPE_PRICE_ID;
+
+if (!stripeSecretKey) {
+  throw new Error("STRIPE_SECRET_KEY is not configured.");
+}
+
+if (!stripePriceId) {
+  throw new Error("STRIPE_PRICE_ID is not configured.");
+}
+
+const stripe = new Stripe(stripeSecretKey);
+
+export async function POST(request: NextRequest) {
+  const response = NextResponse.json({ ok: true }, { status: 200 });
+  const supabase = createRouteHandlerSupabaseAuthClient(request, response);
+  const authorizationHeader = request.headers.get("authorization") ?? "";
+  const bearerToken = authorizationHeader.startsWith("Bearer ")
+    ? authorizationHeader.slice("Bearer ".length).trim()
+    : "";
+
+  const {
+    data: { user: bearerUser },
+    error: bearerAuthError,
+  } = bearerToken ? await supabase.auth.getUser(bearerToken) : await supabase.auth.getUser();
+
+  let user = bearerUser;
+  let authError = bearerAuthError;
+
+  if (!user && !bearerToken) {
+    const fallbackResult = await supabase.auth.getUser();
+    user = fallbackResult.data.user;
+    authError = fallbackResult.error;
+  }
+
+  console.log("[stripe checkout] server user", user?.email);
+  console.log("[stripe checkout] auth error", authError);
+
+  const userEmail = user?.email?.trim().toLowerCase() ?? "";
+  if (!userEmail) {
+    return NextResponse.json({ error: "Not authenticated on server" }, { status: 401 });
+  }
+
+  const { data: member } = await supabaseServer
+    .from("members")
+    .select("id")
+    .ilike("email", userEmail)
+    .maybeSingle();
+
+  const { data: couple } = await supabaseServer
+    .from("couples")
+    .select("id")
+    .or(`partner_one_email.ilike.${userEmail},partner_two_email.ilike.${userEmail}`)
+    .limit(1)
+    .maybeSingle();
+
+  const metadata = {
+    user_email: userEmail,
+    member_id: member?.id ? String(member.id) : "",
+    couple_id: couple?.id ? String(couple.id) : "",
+  };
+
+  const origin = request.nextUrl.origin;
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    line_items: [{ price: stripePriceId, quantity: 1 }],
+    customer_email: userEmail,
+    success_url: `${origin}/dashboard?upgrade=success`,
+    cancel_url: `${origin}/dashboard?upgrade=cancelled`,
+    metadata,
+    subscription_data: {
+      metadata,
+    },
+  });
+
+  return NextResponse.json({ url: session.url }, { status: 200 });
+}
