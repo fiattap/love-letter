@@ -672,8 +672,8 @@ export default function Home() {
               </h2>
               <p className="mt-6 text-base leading-8 text-[#4e4440] sm:text-lg">
                 {magicLinkRateLimited
-                  ? "Supabase temporarily rate-limited the dashboard email during testing. Try again with a different email or wait before requesting another link."
-                  : "We sent dashboard links to both of you."}
+                  ? "We couldn't send your link just now — please wait a moment and try again."
+                  : "Check your inbox — we just emailed a sign-in link to you and your partner. Click it to open your dashboard. If you don't see it within a minute, check your spam folder."}
               </p>
 
               <a

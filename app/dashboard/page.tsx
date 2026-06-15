@@ -81,6 +81,8 @@ type DashboardState = {
   nextWindowText: string;
   nextWindowMonthText: string;
   nextWindowDayText: string;
+  writingOpenMonthText: string;
+  writingOpenDayText: string;
   revealDayText: string;
 };
 
@@ -121,6 +123,8 @@ const DEFAULT_DASHBOARD_STATE: DashboardState = {
   nextWindowText: "soon",
   nextWindowMonthText: "July",
   nextWindowDayText: "25",
+  writingOpenMonthText: "July",
+  writingOpenDayText: "1",
   revealDayText: "15",
 };
 
@@ -131,7 +135,9 @@ function readCachedDashboardState(): DashboardState | null {
 
   try {
     const cached = window.localStorage.getItem(DASHBOARD_CACHE_KEY);
-    return cached ? (JSON.parse(cached) as DashboardState) : null;
+    return cached
+      ? ({ ...DEFAULT_DASHBOARD_STATE, ...(JSON.parse(cached) as Partial<DashboardState>) })
+      : null;
   } catch {
     return null;
   }
@@ -212,6 +218,14 @@ function DashboardContent() {
         day: "numeric",
       }
     ) ?? "the 1st";
+    // Writing-open month/day for THIS cycle (the same cycle as the reveal),
+    // so the "Your dates" tiles always describe one consistent cycle.
+    const writingOpenMonthText = cycleState
+      ? cycleState.writingWindow.writingOpens.toLocaleDateString("en-US", { month: "long" })
+      : "July";
+    const writingOpenDayText = cycleState
+      ? cycleState.writingWindow.writingOpens.toLocaleDateString("en-US", { day: "numeric" })
+      : "1";
     const writingCloseDateText = cycleState?.writingWindow.writingCloses.toLocaleDateString(
       "en-US",
       {
@@ -252,6 +266,8 @@ function DashboardContent() {
       nextWindowText,
       nextWindowMonthText,
       nextWindowDayText,
+      writingOpenMonthText,
+      writingOpenDayText,
     }));
     setDashboardLoaded(true);
 
@@ -359,6 +375,8 @@ function DashboardContent() {
       nextWindowText,
       nextWindowMonthText,
       nextWindowDayText,
+      writingOpenMonthText,
+      writingOpenDayText,
       revealDayText,
     };
 
@@ -867,10 +885,10 @@ function DashboardContent() {
                         Writing opens
                       </p>
                       <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c97972]">
-                        {state.nextWindowMonthText}
+                        {state.writingOpenMonthText}
                       </p>
                       <p className="mt-1 font-serif text-5xl leading-none text-[#342d2a]">
-                        {state.nextWindowDayText}
+                        {state.writingOpenDayText}
                       </p>
                       <svg width="12" height="12" viewBox="0 0 24 24" className="mx-auto mt-3">
                         <path d={HEART_PATH} fill="#c97972" />
