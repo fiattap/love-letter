@@ -864,23 +864,6 @@ function DashboardContent() {
                   <div className="mt-5 grid grid-cols-2 gap-4">
                     <div className="rounded-lg border border-[#e7d5c8] bg-[#fffaf4] px-3 py-5 text-center shadow-[0_8px_20px_rgba(53,35,31,0.06)]">
                       <p className="text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58]">
-                        Reveal day
-                      </p>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c97972]">
-                        {state.promptMonthText}
-                      </p>
-                      <p className="mt-1 font-serif text-5xl leading-none text-[#342d2a]">
-                        {state.revealDayText}
-                      </p>
-                      <svg width="12" height="12" viewBox="0 0 24 24" className="mx-auto mt-3">
-                        <path d={HEART_PATH} fill="#c97972" />
-                      </svg>
-                      <p className="mt-2 text-[0.7rem] leading-5 text-[#6f5b58]">
-                        Letters unlock together.
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-[#e7d5c8] bg-[#fffaf4] px-3 py-5 text-center shadow-[0_8px_20px_rgba(53,35,31,0.06)]">
-                      <p className="text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58]">
                         Writing opens
                       </p>
                       <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c97972]">
@@ -894,6 +877,23 @@ function DashboardContent() {
                       </svg>
                       <p className="mt-2 text-[0.7rem] leading-5 text-[#6f5b58]">
                         Start your next letter.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[#e7d5c8] bg-[#fffaf4] px-3 py-5 text-center shadow-[0_8px_20px_rgba(53,35,31,0.06)]">
+                      <p className="text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58]">
+                        Reveal day
+                      </p>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c97972]">
+                        {state.promptMonthText}
+                      </p>
+                      <p className="mt-1 font-serif text-5xl leading-none text-[#342d2a]">
+                        {state.revealDayText}
+                      </p>
+                      <svg width="12" height="12" viewBox="0 0 24 24" className="mx-auto mt-3">
+                        <path d={HEART_PATH} fill="#c97972" />
+                      </svg>
+                      <p className="mt-2 text-[0.7rem] leading-5 text-[#6f5b58]">
+                        Letters unlock together.
                       </p>
                     </div>
                   </div>

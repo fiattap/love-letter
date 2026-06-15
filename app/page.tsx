@@ -50,21 +50,6 @@ export default function Home() {
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [testEmailStatus, setTestEmailStatus] = useState("");
   const [testEmailError, setTestEmailError] = useState("");
-  const [isRunningCycleAction, setIsRunningCycleAction] = useState(false);
-  const [cycleActionStatus, setCycleActionStatus] = useState("");
-  const [cycleActionError, setCycleActionError] = useState("");
-  const [cycleOverview, setCycleOverview] = useState<
-    {
-      cycleKey: string | null;
-      members: Array<{
-        email: string;
-        deliveryType: string;
-        submitted: boolean;
-        revealReady: boolean;
-        physicalRequested: boolean;
-      }>;
-    } | null
-  >(null);
 
   const unlockDate = getRevealDateForToday(mounted ? getLoveLetterToday() : new Date());
   const unlockText = unlockDate.toLocaleDateString("en-US", {
@@ -315,82 +300,6 @@ export default function Home() {
       ? window.localStorage.getItem("love-letter-dev-date")
       : null;
 
-  const runCycleAction = async (action: "prompt" | "reminder" | "reveal") => {
-    setIsRunningCycleAction(true);
-    setCycleActionError("");
-    setCycleActionStatus("");
-
-    try {
-      const response = await fetch(`/api/dev/send-cycle-${action}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ simulatedDate: getSimulatedDate() }),
-      });
-
-      const result = (await response.json()) as {
-        error?: string;
-        cycleKey?: string;
-        sentCount?: number;
-        skippedCount?: number;
-        failedCount?: number;
-        physicalRequested?: string[];
-      };
-
-      if (!response.ok) {
-        setCycleActionError(result.error ?? "Cycle action failed.");
-        setIsRunningCycleAction(false);
-        return;
-      }
-
-      const physicalRequested = result.physicalRequested ?? [];
-      const physicalNote = physicalRequested.length
-        ? ` Physical requested: ${physicalRequested.join(", ")}.`
-        : "";
-
-      setCycleActionStatus(
-        `Cycle ${result.cycleKey ?? "n/a"}: sent ${result.sentCount ?? 0}, skipped ${result.skippedCount ?? 0}, failed ${result.failedCount ?? 0}.${physicalNote}`
-      );
-
-      await fetchCycleOverview();
-    } catch {
-      setCycleActionError("Cycle action failed.");
-    }
-
-    setIsRunningCycleAction(false);
-  };
-
-  const fetchCycleOverview = async () => {
-    try {
-      const simulatedDate = getSimulatedDate();
-      const query = simulatedDate
-        ? `?simulatedDate=${encodeURIComponent(simulatedDate)}`
-        : "";
-      const response = await fetch(`/api/dev/cycle-overview${query}`);
-      const result = (await response.json()) as {
-        cycleKey?: string | null;
-        members?: Array<{
-          email: string;
-          deliveryType: string;
-          submitted: boolean;
-          revealReady: boolean;
-          physicalRequested: boolean;
-        }>;
-      };
-
-      if (!response.ok) {
-        return;
-      }
-
-      setCycleOverview({
-        cycleKey: result.cycleKey ?? null,
-        members: result.members ?? [],
-      });
-    } catch {
-      // Ignore overview refresh failures in dev panel.
-    }
-  };
 
   return (
     <main className="min-h-screen bg-[#fbf6f1] text-[#161313]">
@@ -822,78 +731,6 @@ export default function Home() {
       </section>
 
 
-                <div className="mt-6 space-y-3 border-t border-[#eadbd0] pt-6">
-                  <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#6f5b58]">
-                    Cycle triggers
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => runCycleAction("prompt")}
-                      disabled={isRunningCycleAction}
-                      className="w-full rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-4 py-3 text-center text-[0.62rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58] shadow-[0_10px_24px_rgba(53,35,31,0.08)] transition enabled:hover:-translate-y-0.5 enabled:hover:border-[#cbb2a2] disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit"
-                    >
-                      Send prompt emails for current cycle
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => runCycleAction("reminder")}
-                      disabled={isRunningCycleAction}
-                      className="w-full rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-4 py-3 text-center text-[0.62rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58] shadow-[0_10px_24px_rgba(53,35,31,0.08)] transition enabled:hover:-translate-y-0.5 enabled:hover:border-[#cbb2a2] disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit"
-                    >
-                      Send reminder emails for current cycle
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => runCycleAction("reveal")}
-                      disabled={isRunningCycleAction}
-                      className="w-full rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-4 py-3 text-center text-[0.62rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58] shadow-[0_10px_24px_rgba(53,35,31,0.08)] transition enabled:hover:-translate-y-0.5 enabled:hover:border-[#cbb2a2] disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit"
-                    >
-                      Send reveal emails for current cycle
-                    </button>
-                  </div>
-
-                  {cycleActionError ? (
-                    <p className="text-sm text-[#b2564f]">{cycleActionError}</p>
-                  ) : null}
-                  {cycleActionStatus ? (
-                    <p className="text-sm text-[#6f5b58]">{cycleActionStatus}</p>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    onClick={fetchCycleOverview}
-                    className="w-full rounded-md border border-[#d9c7ba] bg-white px-4 py-3 text-center text-[0.62rem] font-bold uppercase tracking-[0.16em] text-[#6f5b58] shadow-[0_10px_24px_rgba(53,35,31,0.08)] transition hover:-translate-y-0.5 hover:border-[#cbb2a2] sm:w-fit"
-                  >
-                    Refresh cycle audience
-                  </button>
-
-                  {cycleOverview ? (
-                    <div className="mt-4 rounded-md border border-[#eadbd0] bg-white/80 p-3 text-sm text-[#4e4440]">
-                      <p className="font-bold text-[#342d2a]">
-                        Cycle {cycleOverview.cycleKey ?? "n/a"}
-                      </p>
-                      <div className="mt-3 space-y-2">
-                        {cycleOverview.members.map((member) => (
-                          <div
-                            key={member.email}
-                            className="rounded border border-[#eadbd0] px-3 py-2"
-                          >
-                            <p className="font-medium text-[#342d2a]">{member.email}</p>
-                            <p className="text-[0.75rem] text-[#6f5b58]">
-                              {member.submitted ? "Submitted" : "Not submitted"} · {member.revealReady ? "Reveal ready" : "Reveal pending"}
-                            </p>
-                            {member.physicalRequested ? (
-                              <p className="mt-1 text-[0.72rem] font-bold uppercase tracking-[0.12em] text-[#c97972]">
-                                Physical requested
-                              </p>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
       <footer id="faq" className="bg-[#fbf6f1] px-7 py-10">
         <div className="mx-auto grid max-w-[1300px] gap-10 md:grid-cols-4">
           <div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getLoveLetterToday, getRevealDateForToday } from "@/lib/loveLetterDate";
+import { getCurrentCycleRevealDate, getLoveLetterToday } from "@/lib/loveLetterDate";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 type CycleRow = {
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
     }
 
     const today = getRequestedToday(request);
-    const currentRevealDate = getRevealDateForToday(today);
+    const currentRevealDate = getCurrentCycleRevealDate(today);
     const currentCycleKey = toCycleKeyFromRevealDate(currentRevealDate);
 
     console.log("[admin/cycle-status] Current cycle key:", currentCycleKey);

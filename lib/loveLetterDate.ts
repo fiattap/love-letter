@@ -95,6 +95,21 @@ export function getRevealDateForToday(today = getLoveLetterToday()) {
   return new Date(year, month, 15);
 }
 
+// The cycle the couple is currently "in" for display/prompt selection.
+// Through reveal day (the 15th) you're in this month's cycle; after the 15th,
+// the cycle has revealed and you move to next month's cycle.
+export function getCurrentCycleRevealDate(today = getLoveLetterToday()) {
+  const baseDate = startOfDay(today);
+  if (baseDate.getDate() > 15) {
+    return new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 15);
+  }
+  return new Date(baseDate.getFullYear(), baseDate.getMonth(), 15);
+}
+
+export function getCurrentCycleKey(today = getLoveLetterToday()) {
+  return formatMonthKey(getCurrentCycleRevealDate(today));
+}
+
 export function getCycleScheduleForRevealDate(revealDate: Date): CycleSchedule {
   return {
     cycleKey: formatMonthKey(revealDate),
