@@ -157,6 +157,7 @@ function DashboardContent() {
 
   const [loadError, setLoadError] = useState("");
   const [isCreatingCheckoutSession, setIsCreatingCheckoutSession] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [premiumStatusMessage, setPremiumStatusMessage] = useState("");
   const [premiumErrorMessage, setPremiumErrorMessage] = useState("");
   const [isSendingRevealEmail, setIsSendingRevealEmail] = useState(false);
@@ -533,6 +534,48 @@ function DashboardContent() {
     } catch {
       setPremiumErrorMessage("Could not start Stripe Checkout.");
       setIsCreatingCheckoutSession(false);
+      return;
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setIsOpeningPortal(true);
+    setPremiumErrorMessage("");
+    setPremiumStatusMessage("");
+
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session?.access_token) {
+        setPremiumErrorMessage("Please sign in again to manage your subscription.");
+        setIsOpeningPortal(false);
+        return;
+      }
+
+      const response = await fetch("/api/stripe/create-portal-session", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const result = (await response.json()) as { error?: string; url?: string };
+
+      if (!response.ok || !result.url) {
+        setPremiumErrorMessage(result.error ?? "Could not open the subscription portal.");
+        setIsOpeningPortal(false);
+        return;
+      }
+
+      setPremiumStatusMessage("Opening your subscription portal...");
+      window.location.href = result.url;
+    } catch {
+      setPremiumErrorMessage("Could not open the subscription portal.");
+      setIsOpeningPortal(false);
       return;
     }
   };
@@ -946,11 +989,15 @@ function DashboardContent() {
                     </p>
                     <button
                       type="button"
-                      disabled
-                      className="mt-5 rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-6 py-3 text-xs font-bold uppercase tracking-[0.16em] text-[#6f5b58] opacity-70"
+                      onClick={handleManageSubscription}
+                      disabled={isOpeningPortal}
+                      className="mt-5 rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-6 py-3 text-xs font-bold uppercase tracking-[0.16em] text-[#6f5b58] transition hover:bg-[#fbeee3] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Manage Subscription
+                      {isOpeningPortal ? "Opening…" : "Manage Subscription"}
                     </button>
+                    {premiumErrorMessage ? (
+                      <p className="mt-3 text-sm text-[#b2564f]">{premiumErrorMessage}</p>
+                    ) : null}
                   </div>
                   <div
                     className="min-h-[200px] bg-cover bg-center sm:min-h-0 sm:w-[46%]"
