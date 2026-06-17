@@ -262,6 +262,8 @@ export async function POST(request: Request) {
     .from("prompts")
     .select("month_key, title, prompt")
     .eq("month_key", cycleKey)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (cyclePromptError) {
@@ -323,7 +325,10 @@ export async function POST(request: Request) {
       writersByCoupleId.set(letter.couple_id, new Set<string>());
     }
 
-    writersByCoupleId.get(letter.couple_id)?.add(letter.writer_email);
+    const writerEmail = letter.writer_email?.trim().toLowerCase();
+    if (writerEmail) {
+      writersByCoupleId.get(letter.couple_id)?.add(writerEmail);
+    }
   }
 
   const readyCouples = (couples ?? []).filter((couple) => {
@@ -337,8 +342,8 @@ export async function POST(request: Request) {
     }
 
     return (
-      coupleWriters.has(couple.partner_one_email) &&
-      coupleWriters.has(couple.partner_two_email)
+      coupleWriters.has(couple.partner_one_email.trim().toLowerCase()) &&
+      coupleWriters.has(couple.partner_two_email.trim().toLowerCase())
     );
   });
 

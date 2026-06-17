@@ -282,7 +282,7 @@ function DashboardContent() {
         .maybeSingle(),
       supabase
         .from("couples")
-        .select("partner_one_email, partner_two_email")
+        .select("partner_one_email, partner_two_email, subscription_status")
         .or(`partner_one_email.ilike.${normalizedEmail},partner_two_email.ilike.${normalizedEmail}`)
         .limit(1)
         .maybeSingle(),
@@ -370,7 +370,12 @@ function DashboardContent() {
       partnerSealed,
       physicalInterest: Boolean(member?.physical_interest),
       deliveryType: member?.delivery_type === "physical" ? "physical" : "digital",
-      subscriptionStatus: member?.subscription_status ?? "free",
+      // Billing is per couple, so the couple's status is the source of truth —
+      // this is how the non-paying partner also sees "premium".
+      subscriptionStatus:
+        coupleResult.data?.subscription_status === "premium"
+          ? "premium"
+          : member?.subscription_status ?? "free",
       firstShipmentText,
       nextWindowText,
       nextWindowMonthText,
@@ -793,7 +798,8 @@ function DashboardContent() {
                         Your next letter is on its way.
                       </h1>
                       <p className="mt-4 text-base leading-8 text-[#4e4440] sm:text-lg">
-                        The {state.promptMonthText} prompt opens {state.writingOpenDateText}.
+                        The {state.promptMonthText} prompt opens {state.writingOpenDateText} and
+                        closes {state.writingCloseDateText} — a 5-day window to write.
                       </p>
                       <p className="mt-4 text-sm leading-7 text-[#6f5b58] sm:text-base">
                         We&apos;ll email you both when it&apos;s time to write — no need to remember.
@@ -932,15 +938,11 @@ function DashboardContent() {
                     </h3>
                     <p className="mt-3 text-sm leading-7 text-[#6f5b58] sm:text-base">
                       Your printed letter subscription is active. Your letters still reveal
-                      digitally on {state.revealDateText}; printed copies begin with your next
-                      full cycle, so your first printed letter ships {state.firstShipmentText} after
-                      both letters are sealed.
+                      digitally on {state.revealDateText}; printed copies ship once both
+                      letters are sealed each cycle.
                     </p>
                     <p className="mt-4 text-sm font-bold uppercase tracking-[0.14em] text-[#6f5b58]">
-                      First shipment: {state.firstShipmentText}
-                    </p>
-                    <p className="mt-2 text-sm font-bold uppercase tracking-[0.14em] text-[#6f5b58]">
-                      $9.99/month per couple.
+                      Next shipment: {state.firstShipmentText}
                     </p>
                     <button
                       type="button"

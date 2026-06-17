@@ -1,4 +1,9 @@
+import { cookies } from "next/headers";
+
+import { ADMIN_COOKIE_NAME } from "@/lib/adminAuth";
+
 import AdminDashboardClient from "./AdminDashboardClient";
+import AdminLoginForm from "./AdminLoginForm";
 
 type AdminPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,19 +23,18 @@ export default async function AdminPage(props: AdminPageProps) {
   const query = await props.searchParams;
   const providedSecret = readSearchParam(query.secret).trim();
 
+  const cookieStore = await cookies();
+  const cookieSecret = cookieStore.get(ADMIN_COOKIE_NAME)?.value?.trim() ?? "";
+
+  const secretMatches = (value: string) =>
+    Boolean(expectedSecret) && value === expectedSecret;
+
   const isAuthorized =
-    isDevelopment ||
-    (Boolean(expectedSecret) && Boolean(providedSecret) && providedSecret === expectedSecret);
+    isDevelopment || secretMatches(providedSecret) || secretMatches(cookieSecret);
 
   if (!isAuthorized) {
-    return (
-      <main className="min-h-screen bg-[#fbf6f1] px-5 py-8 text-[#161313] sm:px-8 sm:py-10 lg:px-12">
-        <div className="mx-auto w-full max-w-xl rounded-2xl border border-[#eadbd0] bg-[#fffaf6] p-6 text-center shadow-[0_16px_42px_rgba(53,35,31,0.09)] sm:p-8">
-          <h1 className="font-serif text-4xl leading-tight sm:text-5xl">Not authorized.</h1>
-        </div>
-      </main>
-    );
+    return <AdminLoginForm configured={Boolean(expectedSecret)} />;
   }
 
-  return <AdminDashboardClient adminSecret={providedSecret} />;
+  return <AdminDashboardClient adminSecret={cookieSecret || providedSecret} />;
 }

@@ -55,10 +55,22 @@ export async function POST(request: NextRequest) {
 
   const { data: couple } = await supabaseServer
     .from("couples")
-    .select("id")
+    .select("id, subscription_status")
     .or(`partner_one_email.ilike.${userEmail},partner_two_email.ilike.${userEmail}`)
     .limit(1)
     .maybeSingle();
+
+  // Billing is per couple — if either partner already upgraded, don't let the
+  // other one pay again.
+  if (couple?.subscription_status === "premium") {
+    return NextResponse.json(
+      {
+        error:
+          "Your couple already has the printed letter subscription — you're all set. Refresh to see it.",
+      },
+      { status: 409 }
+    );
+  }
 
   const metadata = {
     user_email: userEmail,
@@ -71,6 +83,10 @@ export async function POST(request: NextRequest) {
     mode: "subscription",
     line_items: [{ price: stripePriceId, quantity: 1 }],
     customer_email: userEmail,
+    // Collect a mailing address so we can ship the printed letters.
+    shipping_address_collection: {
+      allowed_countries: ["US", "CA"],
+    },
     success_url: `${origin}/dashboard?upgrade=success`,
     cancel_url: `${origin}/dashboard?upgrade=cancelled`,
     metadata,

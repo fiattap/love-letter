@@ -8,9 +8,10 @@ import {
   getAppBaseUrl,
   sendSingleCycleEmail,
 } from "@/lib/cycleEmail";
-import { getCycleScheduleFromMonthKey } from "@/lib/loveLetterDate";
+import { getCycleScheduleFromMonthKey, getLoveLetterToday } from "@/lib/loveLetterDate";
 import { loadActivePrompt } from "@/lib/prompts";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 export async function POST(request: Request) {
   const guardError = ensureManualRouteGuard(request);
@@ -26,7 +27,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const activePrompt = await loadActivePrompt();
+  const body = (await request.json().catch(() => ({}))) as { simulatedDate?: string };
+  const parsedSimulatedDate = body.simulatedDate ? new Date(body.simulatedDate) : null;
+  const today =
+    parsedSimulatedDate && !Number.isNaN(parsedSimulatedDate.getTime())
+      ? parsedSimulatedDate
+      : getLoveLetterToday();
+
+  const activePrompt = await loadActivePrompt(today);
   if (!activePrompt) {
     return NextResponse.json(
       { error: "Our next Love Letter is being prepared." },
@@ -42,22 +50,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: members, error: membersError } = await supabase
-    .from("members")
-    .select("email, delivery_type")
-    .order("created_at", { ascending: false });
+  // Both partners can need a reminder; the couples table holds both emails.
+  const { data: couples, error: couplesError } = await supabase
+    .from("couples")
+    .select("partner_one_email, partner_two_email");
 
-  if (membersError || !members) {
+  if (couplesError || !couples) {
     return NextResponse.json(
-      { error: "Could not load members for this cycle." },
+      { error: "Could not load couples for this cycle." },
       { status: 500 }
     );
   }
 
-  const { data: submittedLetters, error: lettersError } = await supabase
+  const { data: physicalMembers } = await supabase
+    .from("members")
+    .select("email, delivery_type");
+
+  const { data: submittedLetters, error: lettersError } = await supabaseServer
     .from("letters")
     .select("writer_email")
-    .eq("prompt", activePrompt.prompt)
+    .eq("cycle_key", cycle.cycleKey)
     .eq("status", "sealed");
 
   if (lettersError) {
@@ -67,8 +79,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const submittedEmails = new Set((submittedLetters ?? []).map((item) => item.writer_email));
-  const recipients = members.filter((item) => !submittedEmails.has(item.email));
+  const submittedEmails = new Set(
+    (submittedLetters ?? [])
+      .map((item) => item.writer_email?.trim().toLowerCase())
+      .filter((email): email is string => Boolean(email))
+  );
+
+  // Both partners, minus anyone who already sealed their letter this cycle.
+  const recipients = Array.from(
+    new Set(
+      couples
+        .flatMap((couple) => [couple.partner_one_email, couple.partner_two_email])
+        .filter((email): email is string => Boolean(email))
+        .map((email) => email.trim().toLowerCase())
+    )
+  ).filter((email) => !submittedEmails.has(email));
 
   const resend = new Resend(resendApiKey);
   const writeUrl = `${getAppBaseUrl()}/write`;
@@ -93,10 +118,10 @@ export async function POST(request: Request) {
   let skippedCount = 0;
   let failedCount = 0;
 
-  for (const member of recipients) {
+  for (const email of recipients) {
     const result = await sendSingleCycleEmail({
       resend,
-      email: member.email,
+      email,
       eventType: "reminder",
       cycleKey: cycle.cycleKey,
       subject: `Reminder: ${activePrompt.title} ♡`,
@@ -117,7 +142,7 @@ export async function POST(request: Request) {
     sentCount += 1;
   }
 
-  const physicalRequested = recipients
+  const physicalRequested = (physicalMembers ?? [])
     .filter((item) => item.delivery_type === "physical")
     .map((item) => item.email);
 

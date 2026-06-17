@@ -20,6 +20,53 @@ function normalizeEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? "";
 }
 
+// The subscription is billed per couple, so the couple row is the source of
+// truth both partners read from. Update by couple_id when we have it (most
+// reliable), otherwise match either partner's email.
+async function updateCoupleSubscription(params: {
+  coupleId: string | null;
+  email: string | null;
+  status: "premium" | "canceled";
+  customerId: string | null;
+  subscriptionId: string | null;
+  shippingName?: string | null;
+  shippingAddress?: unknown;
+}) {
+  const update: Record<string, unknown> = {
+    subscription_status: params.status,
+    stripe_customer_id: params.customerId,
+    stripe_subscription_id: params.subscriptionId,
+  };
+
+  if (params.shippingName !== undefined) {
+    update.shipping_name = params.shippingName;
+  }
+  if (params.shippingAddress !== undefined) {
+    update.shipping_address = params.shippingAddress;
+  }
+
+  let query = supabaseServer.from("couples").update(update);
+
+  if (params.coupleId) {
+    query = query.eq("id", params.coupleId);
+  } else if (params.email) {
+    query = query.or(
+      `partner_one_email.ilike.${params.email},partner_two_email.ilike.${params.email}`
+    );
+  } else {
+    return;
+  }
+
+  const { data, error } = await query.select("id, subscription_status");
+  console.log("[stripe webhook] couple subscription update", {
+    coupleId: params.coupleId,
+    email: params.email,
+    status: params.status,
+    updated: data?.length ?? 0,
+    error,
+  });
+}
+
 export async function POST(request: Request) {
   console.log("[stripe webhook] request received");
 
@@ -83,6 +130,33 @@ export async function POST(request: Request) {
             console.log("[stripe webhook] no email found, skipping member update");
             return NextResponse.json({ received: true }, { status: 200 });
           }
+
+          // Pull the mailing address Checkout collected (handles older and
+          // newer Stripe payload shapes), falling back to billing details.
+          const sessionWithShipping = session as unknown as {
+            shipping_details?: { name?: string | null; address?: unknown } | null;
+            collected_information?: {
+              shipping_details?: { name?: string | null; address?: unknown } | null;
+            } | null;
+          };
+          const shipping =
+            sessionWithShipping.collected_information?.shipping_details ??
+            sessionWithShipping.shipping_details ??
+            null;
+          const shippingAddress = shipping?.address ?? session.customer_details?.address ?? null;
+          const shippingName = shipping?.name ?? session.customer_details?.name ?? null;
+
+          // Source of truth: mark the couple premium (works no matter which
+          // partner paid). Runs before the member update's early returns.
+          await updateCoupleSubscription({
+            coupleId: session.metadata?.couple_id?.trim() || null,
+            email,
+            status: "premium",
+            customerId,
+            subscriptionId,
+            shippingName,
+            shippingAddress,
+          });
 
           console.log("[stripe webhook] updating by email", {
             email,
@@ -151,6 +225,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ received: true }, { status: 200 });
           }
 
+          await updateCoupleSubscription({
+            coupleId: subscription.metadata?.couple_id?.trim() || null,
+            email,
+            status: isPremium ? "premium" : "canceled",
+            customerId,
+            subscriptionId,
+          });
+
           console.log("[stripe webhook] updating by email", {
             email,
             customerId,
@@ -205,6 +287,14 @@ export async function POST(request: Request) {
             console.log("[stripe webhook] no email found, skipping member update");
             return NextResponse.json({ received: true }, { status: 200 });
           }
+
+          await updateCoupleSubscription({
+            coupleId: subscription.metadata?.couple_id?.trim() || null,
+            email,
+            status: "canceled",
+            customerId,
+            subscriptionId,
+          });
 
           console.log("[stripe webhook] updating by email", {
             email,

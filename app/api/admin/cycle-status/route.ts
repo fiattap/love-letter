@@ -152,10 +152,12 @@ export async function GET(request: Request) {
         .map((member) => [member.email, member])
     );
 
-    const premiumSubscribers = ((membersWithPrefs ?? []) as MemberPreferenceRow[]).filter(
-      (member) =>
-        member.subscription_status === "premium" || member.subscription_status === "active"
-    ).length;
+    // Subscriptions are billed per couple, so count premium couples.
+    const { data: premiumCouplesRows } = await supabaseServer
+      .from("couples")
+      .select("id")
+      .in("subscription_status", ["premium", "active"]);
+    const premiumSubscribers = premiumCouplesRows?.length ?? 0;
 
     const physicalInterestCount = ((membersWithPrefs ?? []) as MemberPreferenceRow[]).filter(
       (member) => member.physical_interest === true

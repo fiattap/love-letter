@@ -7,7 +7,7 @@ select v.month_key, v.title, v.prompt, false
 from (values
   ('2026-06', 'June Love Letter', 'What first made you feel safe with me?'),
   ('2026-07', 'July Love Letter', 'What is something you think I don''t realize you appreciate about me?'),
-  ('2026-08', 'August Love Letter', 'When did you most feel loved by me this month?'),
+  ('2026-08', 'August Love Letter', 'When did you most feel loved by me this past month?'),
   ('2026-09', 'September Love Letter', 'What small, everyday moment with me do you treasure most?'),
   ('2026-10', 'October Love Letter', 'What is something you''ve never told me but want me to know?'),
   ('2026-11', 'November Love Letter', 'What about us are you most grateful for right now?'),

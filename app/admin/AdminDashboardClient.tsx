@@ -412,7 +412,7 @@ export default function AdminDashboardClient({
               <div className="mt-6 grid gap-3 rounded-xl border border-[#eadbd0] bg-[#fffdfb] p-4 text-sm text-[#4e4440] sm:grid-cols-2 lg:grid-cols-3">
                 <p>Reveal date: {currentRevealDateUi}</p>
                 <p>Total couples: {currentCycle.total_couples}</p>
-                <p>Premium subscribers: {status.premium_subscribers ?? 0}</p>
+                <p>Premium couples: {status.premium_subscribers ?? 0}</p>
                 <p>Couples ready for reveal: {currentCycle.couples_ready_for_reveal}</p>
                 <p>Couples missing letters: {currentCycle.couples_missing_letters}</p>
                 <p>Total letters written: {currentCycle.total_letters_written}</p>
@@ -521,10 +521,188 @@ export default function AdminDashboardClient({
                   </tbody>
                 </table>
               </div>
+
+              <PrintedLettersPanel adminSecret={adminSecret} cycleKey={currentCycle.cycle_key} />
             </>
           ) : null}
         </section>
       </div>
     </main>
+  );
+}
+
+type ShipmentAddress = {
+  line1?: string | null;
+  line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+} | null;
+
+type ShipmentCouple = {
+  coupleId: string;
+  partnerOneEmail: string | null;
+  partnerTwoEmail: string | null;
+  shippingName: string | null;
+  shippingAddress: ShipmentAddress;
+  status: "pending" | "shipped";
+  shippedAt: string | null;
+};
+
+function formatShippingAddress(address: ShipmentAddress) {
+  if (!address) {
+    return "No address on file";
+  }
+
+  const cityLine = [address.city, address.state, address.postal_code]
+    .filter(Boolean)
+    .join(", ");
+  const parts = [address.line1, address.line2, cityLine, address.country].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : "No address on file";
+}
+
+function PrintedLettersPanel({
+  adminSecret,
+  cycleKey,
+}: {
+  adminSecret: string;
+  cycleKey: string;
+}) {
+  const [couples, setCouples] = useState<ShipmentCouple[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (adminSecret) {
+      params.set("secret", adminSecret);
+    }
+    if (cycleKey) {
+      params.set("cycleKey", cycleKey);
+    }
+    const query = params.toString();
+    return query ? `/api/admin/shipments?${query}` : "/api/admin/shipments";
+  }, [adminSecret, cycleKey]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(apiUrl, { method: "GET", cache: "no-store" });
+      const data = (await response.json()) as { couples?: ShipmentCouple[]; error?: string };
+      if (!response.ok || data.error) {
+        setError(data.error ?? "Could not load printed-letter shipments.");
+        setCouples([]);
+        return;
+      }
+      setCouples(data.couples ?? []);
+    } catch {
+      setError("Could not load printed-letter shipments.");
+      setCouples([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiUrl]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
+
+  const markShipped = async (coupleId: string, shipped: boolean) => {
+    setSavingId(coupleId);
+    try {
+      const params = new URLSearchParams();
+      if (adminSecret) {
+        params.set("secret", adminSecret);
+      }
+      const query = params.toString();
+      const response = await fetch(
+        query ? `/api/admin/shipments?${query}` : "/api/admin/shipments",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ coupleId, cycleKey, shipped }),
+        }
+      );
+      if (response.ok) {
+        await load();
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="mt-8 rounded-xl border border-[#eadbd0] bg-[#fffdfb] p-5">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6f5b58]">
+        Printed letters · {cycleKey}
+      </p>
+      <p className="mt-1 text-xs text-[#8d7a72]">
+        Premium couples for this cycle. Mark each as shipped once you mail their printed letters.
+      </p>
+
+      {loading ? (
+        <p className="mt-4 text-sm text-[#8d7a72]">Loading…</p>
+      ) : error ? (
+        <p className="mt-4 text-sm text-[#b2564f]">{error}</p>
+      ) : couples.length === 0 ? (
+        <p className="mt-4 text-sm text-[#8d7a72]">No premium couples yet.</p>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#eadbd0] text-[0.7rem] uppercase tracking-[0.12em] text-[#9a8a82]">
+                <th className="px-3 py-2 font-bold">Couple</th>
+                <th className="px-3 py-2 font-bold">Mailing address</th>
+                <th className="px-3 py-2 font-bold">Status</th>
+                <th className="px-3 py-2 font-bold">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {couples.map((couple) => (
+                <tr key={couple.coupleId} className="border-b border-[#f1e7dd] align-top">
+                  <td className="px-3 py-3 text-[#4e4440]">
+                    {couple.shippingName ? (
+                      <div className="font-semibold">{couple.shippingName}</div>
+                    ) : null}
+                    <div className="text-xs text-[#8d7a72]">{couple.partnerOneEmail}</div>
+                    <div className="text-xs text-[#8d7a72]">{couple.partnerTwoEmail}</div>
+                  </td>
+                  <td className="px-3 py-3 text-xs text-[#6f5b58]">
+                    {formatShippingAddress(couple.shippingAddress)}
+                  </td>
+                  <td className="px-3 py-3">
+                    <StatusPill value={couple.status === "shipped" ? "Sent" : "Not sent"} />
+                    {couple.shippedAt ? (
+                      <div className="mt-1 text-[0.65rem] text-[#9a8a82]">
+                        {new Date(couple.shippedAt).toLocaleDateString()}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-3">
+                    <button
+                      type="button"
+                      disabled={savingId === couple.coupleId}
+                      onClick={() => markShipped(couple.coupleId, couple.status !== "shipped")}
+                      className="rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-[#6f5b58] transition hover:bg-[#fbeee3] disabled:opacity-50"
+                    >
+                      {savingId === couple.coupleId
+                        ? "Saving…"
+                        : couple.status === "shipped"
+                          ? "Mark not shipped"
+                          : "Mark shipped"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

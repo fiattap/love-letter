@@ -30,7 +30,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const activePrompt = await loadActivePrompt();
+  const body = (await request.json().catch(() => ({}))) as { simulatedDate?: string };
+  const parsedSimulatedDate = body.simulatedDate ? new Date(body.simulatedDate) : null;
+  const today =
+    parsedSimulatedDate && !Number.isNaN(parsedSimulatedDate.getTime())
+      ? parsedSimulatedDate
+      : getLoveLetterToday();
+
+  // Select the prompt for the (possibly simulated) "today" so the cycle and the
+  // writing-window check below stay consistent.
+  const activePrompt = await loadActivePrompt(today);
   if (!activePrompt) {
     return NextResponse.json(
       { error: "Our next Love Letter is being prepared." },
@@ -46,13 +55,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as { simulatedDate?: string };
-  const parsedSimulatedDate = body.simulatedDate ? new Date(body.simulatedDate) : null;
-  const today =
-    parsedSimulatedDate && !Number.isNaN(parsedSimulatedDate.getTime())
-      ? parsedSimulatedDate
-      : getLoveLetterToday();
-
   if (!isPromptEmailEligibleToSend(today, cycle.revealDate)) {
     return NextResponse.json(
       { error: "Prompt emails can only be sent during the writing window." },
@@ -60,17 +62,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: members, error } = await supabase
-    .from("members")
-    .select("email, delivery_type")
-    .order("created_at", { ascending: false });
+  // Both partners must receive the prompt. The couples table holds both emails;
+  // a member row only exists for the person who signed up.
+  const { data: couples, error: couplesError } = await supabase
+    .from("couples")
+    .select("partner_one_email, partner_two_email");
 
-  if (error || !members) {
+  if (couplesError || !couples) {
     return NextResponse.json(
-      { error: "Could not load members for this cycle." },
+      { error: "Could not load couples for this cycle." },
       { status: 500 }
     );
   }
+
+  const recipients = Array.from(
+    new Set(
+      couples
+        .flatMap((couple) => [couple.partner_one_email, couple.partner_two_email])
+        .filter((email): email is string => Boolean(email))
+        .map((email) => email.trim().toLowerCase())
+    )
+  );
+
+  const { data: physicalMembers } = await supabase
+    .from("members")
+    .select("email, delivery_type");
 
   const resend = new Resend(resendApiKey);
   const writeUrl = `${getAppBaseUrl()}/write`;
@@ -97,10 +113,10 @@ export async function POST(request: Request) {
   let skippedCount = 0;
   let failedCount = 0;
 
-  for (const member of members) {
+  for (const email of recipients) {
     const result = await sendSingleCycleEmail({
       resend,
-      email: member.email,
+      email,
       eventType: "prompt",
       cycleKey: cycle.cycleKey,
       subject: `Your ${activePrompt.title} ♡`,
@@ -121,7 +137,7 @@ export async function POST(request: Request) {
     sentCount += 1;
   }
 
-  const physicalRequested = members
+  const physicalRequested = (physicalMembers ?? [])
     .filter((item) => item.delivery_type === "physical")
     .map((item) => item.email);
 

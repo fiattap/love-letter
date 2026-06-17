@@ -63,6 +63,23 @@ export default function Home() {
     setMounted(true);
   }, []);
 
+  // Safety net: if a magic link lands on the homepage (e.g. Supabase fell back
+  // to the Site URL), forward the auth tokens to /auth/callback so the user
+  // still ends up signed in on the dashboard.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const { hash, search } = window.location;
+    const hasHashToken = hash.includes("access_token") && hash.includes("refresh_token");
+    const hasCode = new URLSearchParams(search).has("code");
+
+    if (hasHashToken || hasCode) {
+      window.location.replace(`/auth/callback${search}${hash}`);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
