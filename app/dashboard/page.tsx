@@ -795,11 +795,11 @@ function DashboardContent() {
                         Coming soon
                       </p>
                       <h1 className="mt-3 font-serif text-4xl leading-[1.05] sm:text-5xl">
-                        Your next letter is on its way.
+                        Your next letter opens {state.writingOpenDateText}.
                       </h1>
                       <p className="mt-4 text-base leading-8 text-[#4e4440] sm:text-lg">
-                        The {state.promptMonthText} prompt opens {state.writingOpenDateText} and
-                        closes {state.writingCloseDateText} — a 5-day window to write.
+                        You&apos;ll have until {state.writingCloseDateText} to write — a 5-day window
+                        once it opens.
                       </p>
                       <p className="mt-4 text-sm leading-7 text-[#6f5b58] sm:text-base">
                         We&apos;ll email you both when it&apos;s time to write — no need to remember.
