@@ -158,6 +158,7 @@ function DashboardContent() {
   const [loadError, setLoadError] = useState("");
   const [isCreatingCheckoutSession, setIsCreatingCheckoutSession] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [upgradeAcknowledged, setUpgradeAcknowledged] = useState(false);
   const [premiumStatusMessage, setPremiumStatusMessage] = useState("");
   const [premiumErrorMessage, setPremiumErrorMessage] = useState("");
   const [isSendingRevealEmail, setIsSendingRevealEmail] = useState(false);
@@ -538,6 +539,11 @@ function DashboardContent() {
     }
   };
 
+  const dismissUpgradeModal = () => {
+    setUpgradeAcknowledged(true);
+    router.replace("/dashboard");
+  };
+
   const handleManageSubscription = async () => {
     setIsOpeningPortal(true);
     setPremiumErrorMessage("");
@@ -761,12 +767,12 @@ function DashboardContent() {
           </section>
         ) : (
           <section className="mx-auto mt-10 space-y-8">
-            {upgradeState === "success" ? (
+            {upgradeState === "success" && !upgradeAcknowledged ? (
               <div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(40,28,25,0.45)] p-5"
                 role="dialog"
                 aria-modal="true"
-                onClick={() => router.replace("/dashboard")}
+                onClick={dismissUpgradeModal}
               >
                 <div
                   className="w-full max-w-md rounded-2xl border border-[#c9a27a] bg-[#fff4ec] p-7 text-center shadow-[0_24px_60px_rgba(53,35,31,0.28)] sm:p-9"
@@ -784,7 +790,7 @@ function DashboardContent() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => router.replace("/dashboard")}
+                    onClick={dismissUpgradeModal}
                     className="mt-5 rounded-md bg-[#c97972] px-6 py-3 text-xs font-bold uppercase tracking-[0.16em] text-white shadow-[0_10px_24px_rgba(201,121,114,0.22)] transition hover:-translate-y-0.5 hover:bg-[#b86b65]"
                   >
                     Got it
