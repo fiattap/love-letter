@@ -45,19 +45,27 @@ async function updateCoupleSubscription(params: {
     update.shipping_address = params.shippingAddress;
   }
 
-  let query = supabaseServer.from("couples").update(update);
-
+  // Match by couple_id OR either partner email. Email is the stable identifier
+  // (a stored couple_id can go stale if test data is purged/recreated), so we
+  // include both rather than relying on couple_id alone.
+  const filters: string[] = [];
   if (params.coupleId) {
-    query = query.eq("id", params.coupleId);
-  } else if (params.email) {
-    query = query.or(
-      `partner_one_email.ilike.${params.email},partner_two_email.ilike.${params.email}`
-    );
-  } else {
+    filters.push(`id.eq.${params.coupleId}`);
+  }
+  if (params.email) {
+    filters.push(`partner_one_email.ilike.${params.email}`);
+    filters.push(`partner_two_email.ilike.${params.email}`);
+  }
+
+  if (filters.length === 0) {
     return;
   }
 
-  const { data, error } = await query.select("id, subscription_status");
+  const { data, error } = await supabaseServer
+    .from("couples")
+    .update(update)
+    .or(filters.join(","))
+    .select("id, subscription_status");
   console.log("[stripe webhook] couple subscription update", {
     coupleId: params.coupleId,
     email: params.email,
