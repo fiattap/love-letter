@@ -45,27 +45,29 @@ async function updateCoupleSubscription(params: {
     update.shipping_address = params.shippingAddress;
   }
 
-  // Match by couple_id OR either partner email. Email is the stable identifier
-  // (a stored couple_id can go stale if test data is purged/recreated), so we
-  // include both rather than relying on couple_id alone.
-  const filters: string[] = [];
-  if (params.coupleId) {
-    filters.push(`id.eq.${params.coupleId}`);
-  }
+  // Match by email (the stable identifier — couples are keyed by partner
+  // emails, and matching email-only is proven to work for the member update).
+  // Fall back to couple_id only when no email is available.
+  let result;
   if (params.email) {
-    filters.push(`partner_one_email.ilike.${params.email}`);
-    filters.push(`partner_two_email.ilike.${params.email}`);
-  }
-
-  if (filters.length === 0) {
+    result = await supabaseServer
+      .from("couples")
+      .update(update)
+      .or(
+        `partner_one_email.ilike.${params.email},partner_two_email.ilike.${params.email}`
+      )
+      .select("id, subscription_status");
+  } else if (params.coupleId) {
+    result = await supabaseServer
+      .from("couples")
+      .update(update)
+      .eq("id", params.coupleId)
+      .select("id, subscription_status");
+  } else {
     return;
   }
 
-  const { data, error } = await supabaseServer
-    .from("couples")
-    .update(update)
-    .or(filters.join(","))
-    .select("id, subscription_status");
+  const { data, error } = result;
   console.log("[stripe webhook] couple subscription update", {
     coupleId: params.coupleId,
     email: params.email,
