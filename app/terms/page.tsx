@@ -74,25 +74,27 @@ export default function TermsPage() {
             <p className="mt-3">
               Premium costs <strong>$9.99 per month, per couple</strong>, billed through our payment
               processor (Stripe). It is a recurring subscription that{" "}
-              <strong>automatically renews each month</strong> until cancelled. Each cycle&apos;s
-              printed letters are produced and mailed after the writing window closes on the 5th of
-              the month. By subscribing, you authorize these recurring charges.
+              <strong>automatically renews each month</strong> on the anniversary of your start
+              date, until cancelled. Each cycle&apos;s printed letters are produced and mailed after
+              the writing window closes (the 5th). By subscribing, you authorize these recurring
+              charges.
             </p>
           </section>
 
           <section>
             <h2 className="font-serif text-2xl text-[#342d2a]">6. Cancellation &amp; refunds</h2>
             <p className="mt-3">
-              You can cancel your Premium subscription at any time. To skip the upcoming cycle and
-              avoid being charged for that month&apos;s printed letter, you must cancel{" "}
-              <strong>before the 5th of the month</strong>, since printing and mailing begins on the
-              6th. Cancellations made on or after the 5th take effect for the following cycle.
+              You can cancel your Premium subscription at any time from your dashboard
+              (&quot;Manage Subscription&quot;). Your subscription renews automatically on the
+              monthly anniversary of the date you subscribed. When you cancel, you keep Premium
+              access through the end of the period you have already paid for, and you will not be
+              charged again.
             </p>
             <p className="mt-3">
               Except where required by law, payments already made are{" "}
               <strong>non-refundable</strong>, including for partially used subscription periods.
               Cancelling stops future charges; it does not refund a charge that has already been
-              made. You will keep Premium access through the end of the period you have paid for.
+              made.
             </p>
           </section>
 

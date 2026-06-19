@@ -412,7 +412,19 @@ export default function AdminDashboardClient({
               <div className="mt-6 grid gap-3 rounded-xl border border-[#eadbd0] bg-[#fffdfb] p-4 text-sm text-[#4e4440] sm:grid-cols-2 lg:grid-cols-3">
                 <p>Reveal date: {currentRevealDateUi}</p>
                 <p>Total couples: {currentCycle.total_couples}</p>
-                <p>Premium couples: {status.premium_subscribers ?? 0}</p>
+                <p>
+                  Premium couples: {status.premium_subscribers ?? 0}{" "}
+                  <a
+                    href={
+                      adminSecret
+                        ? `/admin/premium?secret=${encodeURIComponent(adminSecret)}`
+                        : "/admin/premium"
+                    }
+                    className="font-semibold text-[#c97972] underline underline-offset-2"
+                  >
+                    Manage →
+                  </a>
+                </p>
                 <p>Couples ready for reveal: {currentCycle.couples_ready_for_reveal}</p>
                 <p>Couples missing letters: {currentCycle.couples_missing_letters}</p>
                 <p>Total letters written: {currentCycle.total_letters_written}</p>

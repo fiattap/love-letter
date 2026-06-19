@@ -87,6 +87,17 @@ export async function POST(request: NextRequest) {
     shipping_address_collection: {
       allowed_countries: ["US", "CA"],
     },
+    // Show the billing/cancellation policy at the payment step, and require the
+    // customer to accept the Terms of Service before paying.
+    custom_text: {
+      submit: {
+        message:
+          "Subscription auto-renews monthly on your billing date. Cancel anytime — you keep access through the paid month. No refunds.",
+      },
+    },
+    consent_collection: {
+      terms_of_service: "required",
+    },
     success_url: `${origin}/dashboard?upgrade=success`,
     cancel_url: `${origin}/dashboard?upgrade=cancelled`,
     metadata,

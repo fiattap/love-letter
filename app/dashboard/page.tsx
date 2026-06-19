@@ -1029,8 +1029,8 @@ function DashboardContent() {
                       $9.99/month per couple
                     </p>
                     <p className="mt-2 text-xs leading-5 text-[#9a8a82]">
-                      Auto-renews monthly. No refunds — cancel anytime before the 5th of the month to
-                      skip the next cycle. By continuing you agree to our{" "}
+                      Auto-renews monthly. Cancel anytime — you&apos;ll keep access through your
+                      current paid month, then it stops. No refunds. By continuing you agree to our{" "}
                       <a
                         href="/terms"
                         target="_blank"
