@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cardo, Cormorant_Garamond, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import SiteNav from "@/app/components/SiteNav";
 import "./globals.css";
 
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <SiteNav />
         <div className="flex-1">{children}</div>
+        <Analytics />
       </body>
     </html>
   );
