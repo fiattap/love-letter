@@ -3,23 +3,53 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type ShipmentAddress = {
+  line1?: string | null;
+  line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+} | null;
+
 type Subscriber = {
   coupleId: string;
   partnerOneEmail: string | null;
   partnerOneName: string | null;
   partnerTwoEmail: string | null;
   partnerTwoName: string | null;
+  shippingName: string | null;
+  shippingAddress: ShipmentAddress;
   status: string;
   cancelAtPeriodEnd: boolean;
   createdUnix: number | null;
   currentPeriodEndUnix: number | null;
 };
 
+type ShipmentRecord = {
+  couple_id: string;
+  cycle_key: string;
+  status: string;
+  shipped_at: string | null;
+};
+
 type PremiumResponse = {
   activeCount: number;
   subscribers: Subscriber[];
+  shipments: ShipmentRecord[];
   error?: string;
 };
+
+function formatShippingAddress(address: ShipmentAddress): string {
+  if (!address) {
+    return "No address on file";
+  }
+  const cityLine = [address.city, address.state, address.postal_code]
+    .filter(Boolean)
+    .join(", ");
+  const parts = [address.line1, address.line2, cityLine, address.country].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "No address on file";
+}
 
 function monthKeyFromUnix(unix: number | null): string | null {
   if (!unix) {
@@ -130,6 +160,14 @@ export default function PremiumClient({ adminSecret }: { adminSecret: string }) 
     [data, currentMonthKey]
   );
 
+  const shipmentStatus = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const shipment of data?.shipments ?? []) {
+      map.set(`${shipment.couple_id}|${shipment.cycle_key}`, shipment.status);
+    }
+    return map;
+  }, [data]);
+
   const toggleMonth = (key: string) => {
     setOpenMonths((current) => {
       const next = new Set(current);
@@ -208,38 +246,85 @@ export default function PremiumClient({ adminSecret }: { adminSecret: string }) 
                             No couples shipping this month.
                           </p>
                         ) : (
-                          <ul className="divide-y divide-[#f1e7dd]">
-                            {subs.map((sub) => {
-                              const badge = statusInfo(sub);
-                              return (
-                                <li
-                                  key={sub.coupleId}
-                                  className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                  <div className="text-sm text-[#4e4440]">
-                                    <div className="font-semibold">
-                                      {sub.partnerOneName || sub.partnerOneEmail || "Partner one"}
-                                      {sub.partnerTwoName || sub.partnerTwoEmail ? (
-                                        <span className="text-[#9a8a82]">
-                                          {" & "}
-                                          {sub.partnerTwoName || sub.partnerTwoEmail}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead>
+                                <tr className="border-b border-[#eadbd0] text-[0.7rem] uppercase tracking-[0.12em] text-[#9a8a82]">
+                                  <th className="px-3 py-2 font-bold">Couple</th>
+                                  <th className="px-3 py-2 font-bold">Mailing address</th>
+                                  <th className="px-3 py-2 font-bold">Subscription</th>
+                                  <th className="px-3 py-2 font-bold">Shipment</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {subs.map((sub) => {
+                                  const badge = statusInfo(sub);
+                                  return (
+                                    <tr
+                                      key={sub.coupleId}
+                                      className="border-b border-[#f1e7dd] align-top"
+                                    >
+                                      <td className="px-3 py-3 text-[#4e4440]">
+                                        <div className="font-semibold">
+                                          {sub.partnerOneName ||
+                                            sub.partnerOneEmail ||
+                                            "Partner one"}
+                                          {sub.partnerTwoName || sub.partnerTwoEmail ? (
+                                            <span className="text-[#9a8a82]">
+                                              {" & "}
+                                              {sub.partnerTwoName || sub.partnerTwoEmail}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                        <div className="text-xs text-[#8d7a72]">
+                                          {sub.partnerOneEmail}
+                                          {sub.partnerTwoEmail
+                                            ? ` · ${sub.partnerTwoEmail}`
+                                            : ""}
+                                        </div>
+                                        <a
+                                          href={`/admin/print?coupleId=${encodeURIComponent(
+                                            sub.coupleId
+                                          )}&cycleKey=${encodeURIComponent(month.key)}${
+                                            adminSecret
+                                              ? `&secret=${encodeURIComponent(adminSecret)}`
+                                              : ""
+                                          }`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="mt-1 inline-block text-[0.65rem] font-bold uppercase tracking-[0.12em] text-[#c97972] hover:underline"
+                                        >
+                                          Print letters →
+                                        </a>
+                                      </td>
+                                      <td className="px-3 py-3 text-xs text-[#6f5b58]">
+                                        {formatShippingAddress(sub.shippingAddress)}
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        <span
+                                          className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-[0.12em] ${badge.className}`}
+                                        >
+                                          {badge.label}
                                         </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="text-xs text-[#8d7a72]">
-                                      {sub.partnerOneEmail}
-                                      {sub.partnerTwoEmail ? ` · ${sub.partnerTwoEmail}` : ""}
-                                    </div>
-                                  </div>
-                                  <span
-                                    className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-[0.12em] ${badge.className}`}
-                                  >
-                                    {badge.label}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        {shipmentStatus.get(`${sub.coupleId}|${month.key}`) ===
+                                        "shipped" ? (
+                                          <span className="inline-flex w-fit rounded-full border border-[#cdd9c3] bg-[#f4f8ef] px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[#5b7b52]">
+                                            Sent
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex w-fit rounded-full border border-[#e2d2c4] bg-[#fbf6f1] px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-[0.12em] text-[#9a8a82]">
+                                            Not sent
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         )}
                       </div>
                     ) : null}

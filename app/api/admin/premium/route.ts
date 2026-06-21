@@ -17,11 +17,23 @@ type CoupleRow = {
   partner_one_email: string | null;
   partner_two_email: string | null;
   shipping_name: string | null;
+  shipping_address: unknown;
   subscription_status: string | null;
   stripe_subscription_id: string | null;
 };
 
-type MemberRow = { email: string | null; name: string | null };
+type MemberRow = {
+  email: string | null;
+  name: string | null;
+  partner_display_name: string | null;
+};
+
+type ShipmentRow = {
+  couple_id: string;
+  cycle_key: string;
+  status: string;
+  shipped_at: string | null;
+};
 
 export async function GET(request: Request) {
   const guardError = ensureManualRouteGuard(request);
@@ -32,7 +44,7 @@ export async function GET(request: Request) {
   const { data: couplesData, error: couplesError } = await supabaseServer
     .from("couples")
     .select(
-      "id, partner_one_email, partner_two_email, shipping_name, subscription_status, stripe_subscription_id"
+      "id, partner_one_email, partner_two_email, shipping_name, shipping_address, subscription_status, stripe_subscription_id"
     );
 
   if (couplesError) {
@@ -41,13 +53,24 @@ export async function GET(request: Request) {
 
   const couples = (couplesData ?? []) as CoupleRow[];
 
-  const { data: membersData } = await supabaseServer.from("members").select("email, name");
+  const { data: membersData } = await supabaseServer
+    .from("members")
+    .select("email, name, partner_display_name");
   const nameByEmail = new Map<string, string>();
+  const partnerNameByEmail = new Map<string, string>();
   for (const member of (membersData ?? []) as MemberRow[]) {
     if (member.email) {
       nameByEmail.set(member.email.toLowerCase(), member.name ?? "");
+      if (member.partner_display_name) {
+        partnerNameByEmail.set(member.email.toLowerCase(), member.partner_display_name);
+      }
     }
   }
+
+  const { data: shipmentsData } = await supabaseServer
+    .from("shipments")
+    .select("couple_id, cycle_key, status, shipped_at");
+  const shipments = (shipmentsData ?? []) as ShipmentRow[];
 
   // Live subscription status/dates from Stripe, keyed by subscription id.
   const subsById = new Map<string, Stripe.Subscription>();
@@ -94,7 +117,9 @@ export async function GET(request: Request) {
         partnerOneEmail: couple.partner_one_email,
         partnerOneName: nameByEmail.get(oneEmail) || couple.shipping_name || null,
         partnerTwoEmail: couple.partner_two_email,
-        partnerTwoName: nameByEmail.get(twoEmail) || null,
+        partnerTwoName: nameByEmail.get(twoEmail) || partnerNameByEmail.get(oneEmail) || null,
+        shippingName: couple.shipping_name,
+        shippingAddress: couple.shipping_address ?? null,
         status,
         cancelAtPeriodEnd: sub?.cancel_at_period_end ?? false,
         createdUnix: sub?.created ?? null,
@@ -106,5 +131,5 @@ export async function GET(request: Request) {
     (item) => item.status === "active" || item.status === "trialing"
   ).length;
 
-  return NextResponse.json({ activeCount, subscribers });
+  return NextResponse.json({ activeCount, subscribers, shipments });
 }

@@ -560,6 +560,8 @@ type ShipmentCouple = {
   shippingAddress: ShipmentAddress;
   status: "pending" | "shipped";
   shippedAt: string | null;
+  subscriptionStatus?: string;
+  cancelAtPeriodEnd?: boolean;
 };
 
 function formatShippingAddress(address: ShipmentAddress) {
@@ -683,6 +685,15 @@ function PrintedLettersPanel({
                     ) : null}
                     <div className="text-xs text-[#8d7a72]">{couple.partnerOneEmail}</div>
                     <div className="text-xs text-[#8d7a72]">{couple.partnerTwoEmail}</div>
+                    <span
+                      className={`mt-2 inline-flex w-fit rounded-full border px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-[0.12em] ${
+                        couple.cancelAtPeriodEnd
+                          ? "border-[#e4d2b0] bg-[#fdf6e8] text-[#8a6f3a]"
+                          : "border-[#cdd9c3] bg-[#f4f8ef] text-[#5b7b52]"
+                      }`}
+                    >
+                      {couple.cancelAtPeriodEnd ? "Canceling · last shipment" : "Active"}
+                    </span>
                   </td>
                   <td className="px-3 py-3 text-xs text-[#6f5b58]">
                     {formatShippingAddress(couple.shippingAddress)}
@@ -696,18 +707,32 @@ function PrintedLettersPanel({
                     ) : null}
                   </td>
                   <td className="px-3 py-3">
-                    <button
-                      type="button"
-                      disabled={savingId === couple.coupleId}
-                      onClick={() => markShipped(couple.coupleId, couple.status !== "shipped")}
-                      className="rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-[#6f5b58] transition hover:bg-[#fbeee3] disabled:opacity-50"
-                    >
-                      {savingId === couple.coupleId
-                        ? "Saving…"
-                        : couple.status === "shipped"
-                          ? "Mark not shipped"
-                          : "Mark shipped"}
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <a
+                        href={`/admin/print?coupleId=${encodeURIComponent(
+                          couple.coupleId
+                        )}&cycleKey=${encodeURIComponent(cycleKey)}${
+                          adminSecret ? `&secret=${encodeURIComponent(adminSecret)}` : ""
+                        }`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-3 py-2 text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-[#c97972] transition hover:bg-[#fbeee3]"
+                      >
+                        Print letters →
+                      </a>
+                      <button
+                        type="button"
+                        disabled={savingId === couple.coupleId}
+                        onClick={() => markShipped(couple.coupleId, couple.status !== "shipped")}
+                        className="rounded-md border border-[#d9c7ba] bg-[#fff8f2] px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-[#6f5b58] transition hover:bg-[#fbeee3] disabled:opacity-50"
+                      >
+                        {savingId === couple.coupleId
+                          ? "Saving…"
+                          : couple.status === "shipped"
+                            ? "Mark not shipped"
+                            : "Mark shipped"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 import { ensureManualRouteGuard } from "@/lib/cycleEmail";
 import { getCurrentCycleKey } from "@/lib/loveLetterDate";
 import { supabaseServer } from "@/lib/supabaseServer";
+
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 type CoupleRow = {
   id: string;
@@ -10,6 +14,8 @@ type CoupleRow = {
   partner_two_email: string | null;
   shipping_name: string | null;
   shipping_address: unknown;
+  subscription_status: string | null;
+  stripe_subscription_id: string | null;
 };
 
 type ShipmentRow = {
@@ -29,7 +35,9 @@ export async function GET(request: Request) {
 
   const { data: couples, error: couplesError } = await supabaseServer
     .from("couples")
-    .select("id, partner_one_email, partner_two_email, shipping_name, shipping_address")
+    .select(
+      "id, partner_one_email, partner_two_email, shipping_name, shipping_address, subscription_status, stripe_subscription_id"
+    )
     .in("subscription_status", ["premium", "active"]);
 
   if (couplesError) {
@@ -38,6 +46,21 @@ export async function GET(request: Request) {
 
   const coupleRows = (couples ?? []) as CoupleRow[];
   const coupleIds = coupleRows.map((couple) => couple.id);
+
+  // Pull cancel-at-period-end flags from Stripe so we can flag "last shipment".
+  const cancelingSubIds = new Set<string>();
+  if (stripe) {
+    try {
+      const list = await stripe.subscriptions.list({ status: "all", limit: 100 });
+      for (const sub of list.data) {
+        if (sub.cancel_at_period_end) {
+          cancelingSubIds.add(sub.id);
+        }
+      }
+    } catch {
+      // If Stripe is unreachable, fall back to no canceling flags.
+    }
+  }
 
   let shipmentsByCouple = new Map<string, ShipmentRow>();
   if (coupleIds.length > 0) {
@@ -58,6 +81,9 @@ export async function GET(request: Request) {
 
   const rows = coupleRows.map((couple) => {
     const shipment = shipmentsByCouple.get(couple.id);
+    const canceling = couple.stripe_subscription_id
+      ? cancelingSubIds.has(couple.stripe_subscription_id)
+      : false;
     return {
       coupleId: couple.id,
       partnerOneEmail: couple.partner_one_email,
@@ -66,6 +92,8 @@ export async function GET(request: Request) {
       shippingAddress: couple.shipping_address ?? null,
       status: shipment?.status === "shipped" ? "shipped" : "pending",
       shippedAt: shipment?.shipped_at ?? null,
+      subscriptionStatus: couple.subscription_status ?? "premium",
+      cancelAtPeriodEnd: canceling,
     };
   });
 

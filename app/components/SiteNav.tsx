@@ -100,7 +100,7 @@ export default function SiteNav() {
   }
 
   return (
-    <header className="border-b border-[#eadbd0] bg-[#fbf6f1]">
+    <header className="border-b border-[#eadbd0] bg-[#fbf6f1] print:hidden">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 sm:px-8 lg:px-12">
         <Link href="/" aria-label="Love Letter home" className="flex items-center">
           <LogoMark />
